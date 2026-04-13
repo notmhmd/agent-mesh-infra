@@ -37,9 +37,12 @@ services:
       context: ../agent-mesh-execution
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "9090:9090"
     environment:
       ConnectionStrings__Redis: redis:6379,abortConnect=false
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-agent_mesh};Username=${POSTGRES_USER:-agent};Password=${POSTGRES_PASSWORD:-change-me}
+      METRICS_PORT: "9090"
       APCA_API_KEY_ID: ${APCA_API_KEY_ID:-}
       APCA_API_SECRET_KEY: ${APCA_API_SECRET_KEY:-}
     depends_on:
@@ -67,8 +70,13 @@ services:
     environment:
       REDIS_HOST: redis
       STREAM_KEY: stream:approved:intents
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
     depends_on:
       redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
     networks: [mesh]
 
   caddy:
