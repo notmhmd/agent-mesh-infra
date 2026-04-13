@@ -30,15 +30,18 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     steps:
+      # workflow_run defaults GITHUB_SHA to default-branch tip; use the CI run commit for script_path + deploy parity.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: SSH — deploy script on VPS
         uses: appleboy/ssh-action@v1.2.0
         env:
           DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
-          GIT_BRANCH: ${{ secrets.VPS_GIT_BRANCH }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-          RUN_MIGRATE: ${{ inputs.run_migrate }}
+          # Avoid empty env values in drone-ssh envs (null inputs break some versions).
+          RUN_MIGRATE: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrate || false }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -47,5 +50,5 @@ jobs:
           timeout: 2m
           command_timeout: 30m
           script_stop: true
-          envs: DEPLOY_PATH,GIT_BRANCH,GITHUB_EVENT_NAME,RUN_MIGRATE
-          script_path: scripts/github_vps_deploy.sh
+          envs: DEPLOY_PATH,GITHUB_EVENT_NAME,RUN_MIGRATE
+          script_path: ${{ github.workspace }}/scripts/github_vps_deploy.sh
