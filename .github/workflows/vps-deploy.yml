@@ -1,10 +1,10 @@
 # Deploy agent-mesh to a VPS over SSH (git pull sibling repos + docker compose).
 #
 # Secrets: VPS_HOST, VPS_USER, VPS_SSH_PRIVATE_KEY
-# Optional: VPS_DEPLOY_PATH, VPS_GIT_BRANCH
+# Optional: VPS_DEPLOY_PATH
 #
 # CD: after "CI" succeeds on a push to main, this workflow runs (workflow_run).
-# Remote commands live in scripts/github_vps_deploy.sh (avoids appleboy line-splitting bugs).
+# Remote commands: scripts/github_vps_deploy.sh (piped over OpenSSH; avoids appleboy/drone-ssh quirks).
 
 name: VPS deploy
 
@@ -30,25 +30,32 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     steps:
-      # workflow_run defaults GITHUB_SHA to default-branch tip; use the CI run commit for script_path + deploy parity.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - name: SSH — deploy script on VPS
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Deploy over SSH (stdin script)
         env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
           DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
-          # Avoid empty env values in drone-ssh envs (null inputs break some versions).
-          RUN_MIGRATE: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrate || false }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          # Default 30s dial often flakes from GitHub runners; server also tuned in sshd_config.d/99-agent-mesh-ci.conf
-          timeout: 2m
-          command_timeout: 30m
-          script_stop: true
-          envs: DEPLOY_PATH,GITHUB_EVENT_NAME,RUN_MIGRATE
-          script_path: ${{ github.workspace }}/scripts/github_vps_deploy.sh
+          RUN_MIGRATE: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrate == true && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/agent_mesh_deploy
+          chmod 600 ~/.ssh/agent_mesh_deploy
+          D="${DEPLOY_PATH:-/opt/agent-mesh/agent-mesh-infra}"
+          E="${GITHUB_EVENT_NAME}"
+          M="${RUN_MIGRATE:-false}"
+          REMOTE="export DEPLOY_PATH=$(printf '%q' "$D"); export GITHUB_EVENT_NAME=$(printf '%q' "$E"); export RUN_MIGRATE=$(printf '%q' "$M"); bash -s"
+          ssh -i ~/.ssh/agent_mesh_deploy \
+            -o StrictHostKeyChecking=accept-new \
+            -o ServerAliveInterval=30 \
+            -o ConnectTimeout=120 \
+            "${VPS_USER}@${VPS_HOST}" \
+            "$REMOTE" \
+            < "${GITHUB_WORKSPACE}/scripts/github_vps_deploy.sh"
+          rm -f ~/.ssh/agent_mesh_deploy
