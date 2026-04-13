@@ -28,7 +28,7 @@ Open `http://localhost` (Caddy → dashboard on port 80).
 |---------|----------------|--------|
 | postgres | pgvector/pg16 | Add init SQL in a future change |
 | redis | redis:7 | Queues + cache |
-| execution | `../agent-mesh-execution` | Go consumer |
+| execution | `../agent-mesh-execution` | .NET 8 gateway |
 | dashboard | `../agent-mesh-dashboard` | Streamlit |
 | caddy | caddy:2 | Reverse proxy |
 

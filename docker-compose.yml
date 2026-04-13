@@ -37,7 +37,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      REDIS_ADDR: redis:6379
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
       APCA_API_KEY_ID: ${APCA_API_KEY_ID:-}
       APCA_API_SECRET_KEY: ${APCA_API_SECRET_KEY:-}
     depends_on:
