@@ -5,7 +5,7 @@ Docker Compose + **Caddy** for the Agent Mesh stack. Assumes **sibling directori
 ```text
 parent/
   agent-mesh-contracts/   # JSON schemas (reference only in builds)
-  agent-mesh-execution/     # Go gateway
+  agent-mesh-execution/     # .NET gateway
   agent-mesh-pipeline/      # Python workers (add service when ready)
   agent-mesh-dashboard/     # Streamlit
   agent-mesh-infra/         # this repo — run compose from here
