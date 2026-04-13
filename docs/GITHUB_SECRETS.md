@@ -35,3 +35,7 @@ Paste or pipe carefully; avoid shell history with real keys.
 **CD (automatic):** after **`CI`** succeeds on a **push to `main`**, **`VPS deploy`** runs via **`workflow_run`** (see `.github/workflows/vps-deploy.yml`). You can still run **`VPS deploy`** manually from the Actions tab (e.g. to toggle **run_migrate**).
 
 On the VPS, remove any legacy **Hydra / quant_** stack before binding Caddy to **:80/:443** — see `deploy/vps/remove-hydra.sh` and `deploy/vps/README.md`.
+
+### CD and SSH from GitHub-hosted runners
+
+**VPS deploy** runs on **GitHub’s cloud runners**; they must be able to open **TCP 22** to `VPS_HOST`. If deploy fails with **`dial tcp …:22: i/o timeout`**, allow SSH from [GitHub Actions IP ranges](https://api.github.com/meta) (`actions` in the JSON) on your firewall or cloud security group, or run deploy from a **self-hosted** runner that can already reach the VPS.
