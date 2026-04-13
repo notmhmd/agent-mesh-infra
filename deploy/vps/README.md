@@ -73,6 +73,6 @@ If an older **Hydra** stack still holds **:80/:443** (e.g. `quant_nginx` under `
 ## GitHub Actions (CI/CD)
 
 - **CI:** `.github/workflows/ci.yml` — on each PR / push to `main`, clones public sibling repos (same GitHub **owner** as this repo) and runs `docker compose … config`. Optional secret **`CLONE_PAT`** for private siblings.
-- **Deploy:** `.github/workflows/vps-deploy.yml` — **Run workflow** in the Actions tab; pulls all sibling repos under the parent of `VPS_DEPLOY_PATH`, then `docker compose` with **llm**, **signals**, **mesh-tools**, and **realtime** profiles. Checkbox **run_migrate** runs the one-shot migrate job.
+- **Deploy:** `.github/workflows/vps-deploy.yml` — **CD:** runs automatically after **`CI`** succeeds on each **push to `main`**. Manual **Run workflow** is still available (checkbox **run_migrate**). Pulls sibling repos under the parent of `VPS_DEPLOY_PATH`, then `docker compose` with **llm**, **signals**, **mesh-tools**, and **realtime** profiles.
 
 Configure **SSH key** secrets on the repo — **not** the root password. See [../../docs/GITHUB_SECRETS.md](../../docs/GITHUB_SECRETS.md).

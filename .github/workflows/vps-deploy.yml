@@ -8,6 +8,8 @@
 #
 # One-time on the server: clone all sibling repos under the same parent directory as agent-mesh-infra
 # (see deploy/vps/README.md). Use a deploy key or machine user with read access to private repos.
+#
+# CD: after the "CI" workflow succeeds on a push to main, this workflow deploys to the VPS.
 
 name: VPS deploy
 
@@ -19,14 +21,10 @@ on:
         required: false
         default: false
         type: boolean
-  # Optional CD on main — uncomment when secrets are set and you want automatic deploys:
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - 'docker-compose*.yml'
-  #     - 'deploy/**'
-  #     - 'postgres/**'
-  #     - '.github/workflows/vps-deploy.yml'
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 concurrency:
   group: vps-deploy
@@ -34,6 +32,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     steps:
       - name: SSH — git pull siblings + compose up
