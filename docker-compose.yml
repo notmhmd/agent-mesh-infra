@@ -80,6 +80,12 @@ services:
     environment:
       REDIS_HOST: redis
       PUBLISH_INTERVAL_SEC: ${PUBLISH_INTERVAL_SEC:-45}
+      # PIPELINE_CMD=alpaca → WSS `wss://stream.data.alpaca.markets/v2/iex` → Redis `mesh:alpaca:last:{SYM}`
+      PIPELINE_CMD: ${PIPELINE_CMD:-dev}
+      APCA_API_KEY_ID: ${APCA_API_KEY_ID:-}
+      APCA_API_SECRET_KEY: ${APCA_API_SECRET_KEY:-}
+      ALPACA_SYMBOLS: ${ALPACA_SYMBOLS:-SPY}
+      ALPACA_WS_URL: ${ALPACA_WS_URL:-wss://stream.data.alpaca.markets/v2/iex}
     depends_on:
       redis: { condition: service_healthy }
     networks: [mesh]

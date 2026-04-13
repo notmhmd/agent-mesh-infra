@@ -4,6 +4,12 @@
 #   docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile llm --profile signals up -d --build
 #
 services:
+  # Alpaca WSS → Redis `mesh:alpaca:last:*` only (no XADD). Default `alpaca` here; base compose defaults `dev` for local-only profile.
+  pipeline:
+    environment:
+      PIPELINE_CMD: ${PIPELINE_CMD:-alpaca}
+      ALPACA_SYMBOLS: ${ALPACA_SYMBOLS:-SPY}
+
   caddy:
     environment:
       CADDY_DOMAIN: ${CADDY_DOMAIN:?Set CADDY_DOMAIN in .env e.g. mesh.skrr.cloud}

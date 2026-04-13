@@ -21,6 +21,8 @@ services:
     command: ["gateway"]
     ports:
       - "8443:8443"
+      # OpenAI-compatible API (enable in gateway-data/.env: API_SERVER_*). Not a full browser UI; use /v1 with a client.
+      - "8642:8642"
     volumes:
       - ./deploy/hermes/gateway-data:/opt/data
     environment:

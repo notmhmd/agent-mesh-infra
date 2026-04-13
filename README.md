@@ -17,9 +17,9 @@ docker compose --profile migrate run --rm migrate   # existing DBs only
 docker compose --profile llm --profile signals up -d --build strategist signal-agent
 ```
 
-Open **http://localhost** (Caddy → Streamlit). The **`pipeline`** dev publisher is opt-in (`docker compose --profile pipeline up`). **Do not** run it alongside **`signal-agent`** without intent.
+Open **http://localhost** (Caddy → Streamlit). The **`pipeline`** service is opt-in (`--profile pipeline`): default **`PIPELINE_CMD=dev`** (sample XADD) — **do not** run that alongside **`signal-agent`**. Use **`PIPELINE_CMD=alpaca`** (WSS → Redis `mesh:alpaca:last:*` only) with **`docker-compose.vps.yml`** on VPS; that is safe with **`signal-agent`**.
 
-**Profiles:** `llm` · `signals` · `learning` · `memory` (+ `docker-compose.mem0.yml`) · `realtime` (+ `docker-compose.realtime.yml`) · `mesh-tools` (+ `docker-compose.mesh-tools.yml`) · `hermes` / `hermes-research` (+ `docker-compose.hermes.yml`).
+**Profiles:** `llm` · `signals` · `pipeline` · `learning` · `memory` (+ `docker-compose.mem0.yml`) · `realtime` (+ `docker-compose.realtime.yml`) · `mesh-tools` (+ `docker-compose.mesh-tools.yml`) · `hermes` / `hermes-research` (+ `docker-compose.hermes.yml`).
 
 ## Services
 
@@ -31,7 +31,7 @@ Open **http://localhost** (Caddy → Streamlit). The **`pipeline`** dev publishe
 | strategist | `../agent-mesh-strategist` | `llm` |
 | signal-agent | `../agent-mesh-signal` | `signals` |
 | learning-agent | same | `learning` |
-| pipeline | `../agent-mesh-pipeline` | dev publisher |
+| pipeline | `../agent-mesh-pipeline` | dev XADD or Alpaca WSS feed (`PIPELINE_CMD`) |
 | dashboard | `../agent-mesh-dashboard` | — |
 | caddy | caddy:2 | :80 |
 | mesh-tools | `../agent-mesh-mesh-tools` | `mesh-tools` — read-only API :8088 |

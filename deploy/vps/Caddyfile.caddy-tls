@@ -1,10 +1,10 @@
-# Use when Caddy binds public :80 and :443 (no edge nginx). Automatic HTTPS for {$CADDY_DOMAIN}.
-# Replace deploy/vps/Caddyfile with this file (or merge the site block) and restart caddy.
+# Same as deploy/vps/Caddyfile — kept for docs/scripts that reference this filename after Hydra removal.
+# Caddy: automatic HTTPS for {$CADDY_DOMAIN} and hermes.skrr.cloud.
 
 {$CADDY_DOMAIN} {
 	encode gzip zstd
 
-	# Optional: Hermes Telegram webhook (merge docker-compose.hermes.yml)
+	# Optional: Hermes Telegram webhook (merge docker-compose.hermes.yml, set TELEGRAM_WEBHOOK_URL=https://{$CADDY_DOMAIN}/telegram)
 	# handle_path /telegram/* {
 	# 	reverse_proxy hermes-gateway:8443
 	# }
@@ -15,4 +15,9 @@
 	# }
 
 	reverse_proxy dashboard:8501
+}
+
+hermes.skrr.cloud {
+	encode gzip zstd
+	reverse_proxy hermes-gateway:8642
 }

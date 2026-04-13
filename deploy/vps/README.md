@@ -38,7 +38,7 @@ nano deploy/hermes/gateway-data/.env   # TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_US
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile migrate run --rm migrate
-docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile llm --profile signals up -d --build
+docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile llm --profile signals --profile pipeline up -d --build
 ```
 
 Open **https://mesh.skrr.cloud** (replace with your `CADDY_DOMAIN`).
@@ -73,6 +73,6 @@ If an older **Hydra** stack still holds **:80/:443** (e.g. `quant_nginx` under `
 ## GitHub Actions (CI/CD)
 
 - **CI:** `.github/workflows/ci.yml` — on each PR / push to `main`, clones public sibling repos (same GitHub **owner** as this repo) and runs `docker compose … config`. Optional secret **`CLONE_PAT`** for private siblings.
-- **Deploy:** `.github/workflows/vps-deploy.yml` — **CD:** runs automatically after **`CI`** succeeds on each **push to `main`**. Manual **Run workflow** is still available (checkbox **run_migrate**). Pulls sibling repos under the parent of `VPS_DEPLOY_PATH`, then `docker compose` with **llm**, **signals**, **mesh-tools**, and **realtime** profiles.
+- **Deploy:** `.github/workflows/vps-deploy.yml` — **CD:** runs automatically after **`CI`** succeeds on each **push to `main`**. Manual **Run workflow** is still available (checkbox **run_migrate**). Pulls sibling repos under the parent of `VPS_DEPLOY_PATH`, then `docker compose` with **llm**, **signals**, **pipeline** (Alpaca WSS → Redis when using `docker-compose.vps.yml`; default **`PIPELINE_CMD=alpaca`**), **mesh-tools**, **realtime**, **hermes**, and **memory** profiles.
 
 Configure **SSH key** secrets on the repo — **not** the root password. See [../../docs/GITHUB_SECRETS.md](../../docs/GITHUB_SECRETS.md).
