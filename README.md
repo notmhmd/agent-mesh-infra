@@ -22,6 +22,8 @@ docker compose up -d --build
 
 Open `http://localhost` (Caddy → dashboard on port 80).
 
+**Prometheus:** scrape `execution:9090/metrics` (mapped to host `localhost:9090` in compose).
+
 ## Services
 
 | Service | Image / build | Notes |
