@@ -43,6 +43,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          # Default 30s dial often flakes from GitHub runners; server also tuned in sshd_config.d/99-agent-mesh-ci.conf
+          timeout: 2m
+          command_timeout: 30m
           script_stop: true
           envs: DEPLOY_PATH,GIT_BRANCH,GITHUB_EVENT_NAME,RUN_MIGRATE
           script_path: scripts/github_vps_deploy.sh
