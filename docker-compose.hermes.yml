@@ -27,6 +27,10 @@ services:
       - ./deploy/hermes/gateway-data:/opt/data
     environment:
       HERMES_HOME: /opt/data
+      # Mem0 Platform (Python SDK in Hermes; see deploy/hermes/README.md). OSS self-hosted REST is not the same API.
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+      MEM0_USER_ID: ${MEM0_USER_ID:-agent-mesh}
+      MEM0_AGENT_ID: ${HERMES_MEM0_AGENT_ID:-hermes-gateway}
     networks: [mesh]
 
   hermes-research:
@@ -41,4 +45,7 @@ services:
       - ./deploy/hermes/research-data:/opt/data
     environment:
       HERMES_HOME: /opt/data
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+      MEM0_USER_ID: ${MEM0_USER_ID:-agent-mesh}
+      MEM0_AGENT_ID: ${HERMES_RESEARCH_MEM0_AGENT_ID:-hermes-research}
     networks: [mesh]

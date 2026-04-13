@@ -7,3 +7,8 @@ model:
   # Native Gemini provider: use API model ids (e.g. gemini-2.5-flash-lite), not LiteLLM-style "gemini/..." —
   # otherwise Google receives models/gemini/gemini-2.5-flash-lite and returns 404.
   default: "gemini-2.5-flash-lite"
+
+# Long-term memory (Telegram + tools). Requires MEM0_API_KEY in the gateway container
+# (Mem0 Platform API key, m0-... — see deploy/hermes/README.md).
+memory:
+  provider: mem0

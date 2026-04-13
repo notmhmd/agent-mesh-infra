@@ -21,6 +21,16 @@ Long-polling needs no Caddy change. **Webhook:** set `TELEGRAM_WEBHOOK_URL` in `
 
 **HTTP tools (mesh status):** With **`mesh-tools`** running (`docker-compose.mesh-tools.yml`, profile **`mesh-tools`**), configure Hermes to fetch e.g. `http://mesh-tools:8088/v1/market-intelligence/latest?limit=5` (read-only). Trades still go through signal-agent → stream → execution.
 
+### Mem0 (Telegram remembers context)
+
+1. **`gateway-data/config.yaml`** must enable **`memory.provider: mem0`** (this repo ships that — do not remove unless you switch providers).
+2. Set **`MEM0_API_KEY`** to a **[Mem0 Platform](https://app.mem0.ai/) API key** (prefix **`m0-`**). Pass it via **`agent-mesh-infra` root `.env`** (recommended — `docker-compose.hermes.yml` injects `MEM0_*` into the gateway) or duplicate in **`gateway-data/.env`** if you run Hermes outside this compose.
+3. Optional: **`MEM0_USER_ID`** (default `agent-mesh`, same namespace as strategist/signal Platform mode) and **`HERMES_MEM0_AGENT_ID`** (default `hermes-gateway`) in root `.env`.
+
+**Why Telegram “did not recognize” Mem0:** Without **`memory.provider: mem0`**, Hermes never loads the Mem0 plugin. With only a self-hosted OSS Mem0 container (**`MEM0_BASE_URL=http://mem0:8000`**), strategist/signal use **HTTP** to that API; Hermes upstream uses the **cloud `MemoryClient`** only — use a **Platform `m0-` key** for Telegram, or pick another [memory provider](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory-providers) (e.g. holographic for fully local).
+
+After changing keys, restart **`hermes-gateway`**: `docker compose … up -d --build hermes-gateway`.
+
 ## Why you “don’t see” Hermes config in git
 
 `deploy/hermes/gateway-data/.env` is **gitignored** (secrets). In this repo you only get **`deploy/hermes/env.example`**. One-time:
