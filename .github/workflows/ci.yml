@@ -46,6 +46,9 @@ jobs:
           done
 
       - name: Docker Compose config
+        env:
+          # docker-compose.vps.yml requires CADDY_DOMAIN at interpolate time (no .env in CI).
+          CADDY_DOMAIN: ci.example.invalid
         run: |
           set -euo pipefail
           cd "${GITHUB_WORKSPACE}"
