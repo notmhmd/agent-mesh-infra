@@ -4,9 +4,10 @@ Docker Compose + **Caddy** for the Agent Mesh stack. Assumes **sibling directori
 
 ```text
 parent/
-  agent-mesh-contracts/   # JSON schemas (reference only in builds)
-  agent-mesh-execution/     # .NET gateway
-  agent-mesh-pipeline/      # Python workers (add service when ready)
+  agent-mesh-contracts/     # JSON schemas (reference only in builds)
+  agent-mesh-execution/     # .NET gateway (no LLM)
+  agent-mesh-strategist/    # LiteLLM regime/sentiment → Postgres + Redis (optional `--profile llm`)
+  agent-mesh-pipeline/      # Python workers / dev publisher
   agent-mesh-dashboard/     # Streamlit
   agent-mesh-infra/         # this repo — run compose from here
 ```
@@ -20,9 +21,24 @@ cp env.example .env
 docker compose up -d --build
 ```
 
+**LLM strategist (optional):** writes `market_intelligence` + Redis `strategist:latest`; **never** calls Alpaca. Requires an API key (e.g. `OPENAI_API_KEY`) or local **Ollama** (`LLM_MODEL=ollama/llama3.2`, `OLLAMA_BASE_URL`).
+
+```bash
+docker compose --profile llm up -d --build strategist
+```
+
+**Observability (optional):** Prometheus + Grafana on the `mesh` network.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+```
+
+- Prometheus UI: `http://localhost:9091` (config: `deploy/prometheus/prometheus.yml`; scrapes `execution:9090/metrics`).
+- Grafana: `http://localhost:3000` (datasource Prometheus at `http://prometheus:9090`).
+
 Open `http://localhost` (Caddy → dashboard on port 80).
 
-**Prometheus:** scrape `execution:9090/metrics` (mapped to host `localhost:9090` in compose).
+**Execution metrics:** `http://localhost:9090/metrics` on the host (execution container); Prometheus scrapes `execution:9090` inside Docker.
 
 ## Services
 
@@ -30,8 +46,9 @@ Open `http://localhost` (Caddy → dashboard on port 80).
 |---------|----------------|--------|
 | postgres | pgvector/pg17 | Init SQL + indexes |
 | redis | redis:8-alpine | Streams + cache |
-| execution | `../agent-mesh-execution` | .NET 8 gateway |
-| pipeline | `../agent-mesh-pipeline` | Dev publisher → `approved:intents` |
+| execution | `../agent-mesh-execution` | .NET 9 gateway (LLM-free) |
+| strategist | `../agent-mesh-strategist` | **Profile `llm`** — LiteLLM analysis |
+| pipeline | `../agent-mesh-pipeline` | Dev publisher → stream |
 | dashboard | `../agent-mesh-dashboard` | Streamlit |
 | caddy | caddy:2 | Reverse proxy |
 

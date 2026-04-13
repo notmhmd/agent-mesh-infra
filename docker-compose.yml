@@ -62,6 +62,29 @@ services:
       redis: { condition: service_healthy }
     networks: [mesh]
 
+  # LLM strategist (LiteLLM) — analysis only; enable with: docker compose --profile llm up -d
+  strategist:
+    profiles: [llm]
+    build:
+      context: ../agent-mesh-strategist
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      STRATEGIST_INTERVAL_SEC: ${STRATEGIST_INTERVAL_SEC:-120}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    networks: [mesh]
+
   dashboard:
     build:
       context: ../agent-mesh-dashboard

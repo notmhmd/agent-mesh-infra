@@ -1,4 +1,5 @@
 .env
 pg_data/
 redis_data/
+grafana_data/
 .DS_Store

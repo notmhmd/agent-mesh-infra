@@ -1,15 +1,25 @@
 # Agent Mesh — iteration tracker
 
-## Done (latest iteration)
-- [x] Prometheus metrics on execution (`/metrics` on port 9090, `prometheus-net`)
-- [x] Dashboard: Postgres read + `st.fragment` periodic refresh (Streamlit ≥ 1.33)
-- [x] Compose: expose `9090` for execution metrics; dashboard wired to Postgres
-- [x] CI: GitHub Actions — `dotnet build` (execution), `docker build` (dashboard, pipeline)
+## Done
+- [x] Prometheus + Grafana merge compose (`docker-compose.observability.yml`)
+- [x] **LLM strategist** service (`agent-mesh-strategist`, LiteLLM, profile `llm`)
+- [x] Postgres `market_intelligence` table + dashboard panel
+- [x] Execution remains LLM-free; metrics on `:9090/metrics`
 
-## Backlog (next)
-- [ ] Grafana + Prometheus scrape config (compose profile)
-- [ ] OTEL traces for Redis/Npgsql (optional)
-- [ ] Formal DB migrations (Flyway / `dotnet ef` / atlas)
+## Backlog
+- [ ] Wire **signal** worker to read `market_intelligence` + apply risk rules before `stream:approved:intents`
+- [ ] OpenTelemetry traces (optional)
+- [ ] Formal DB migrations (existing volumes need manual migrate for new columns)
+
+## Architecture (LLM placement)
+
+```
+strategist (LLM) → Postgres market_intelligence + Redis strategist:latest
+       ↓ (future)
+signal / risk agents (rules + optional ML) → stream:approved:intents
+       ↓
+execution (.NET, no LLM) → Alpaca
+```
 
 ## Review
-- Execution exposes **Prometheus** scrape endpoint; dashboard uses **fragments** for efficient partial rerenders; CI validates **.NET 9** and **Docker** builds independently per repo.
+- Parallel subagents produced observability files + strategist code; main thread wired schema, compose profile, dashboard, README.
