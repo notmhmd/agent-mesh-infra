@@ -1,66 +1,50 @@
 # agent-mesh-infra
 
-Docker Compose + **Caddy** for the Agent Mesh stack. Assumes **sibling directories** on the host:
+Docker Compose + **Caddy** for the Agent Mesh. **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md). **VPS + TLS + subdomain:** [deploy/vps/README.md](deploy/vps/README.md). **Design:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). **Smoke test:** `./scripts/verify_stack.sh`.
 
-```text
-parent/
-  agent-mesh-contracts/     # JSON schemas (reference only in builds)
-  agent-mesh-execution/     # .NET gateway (no LLM)
-  agent-mesh-strategist/    # LiteLLM regime/sentiment → Postgres + Redis (optional `--profile llm`)
-  agent-mesh-pipeline/      # Python workers / dev publisher
-  agent-mesh-dashboard/     # Streamlit
-  agent-mesh-infra/         # this repo — run compose from here
-```
+## Sibling repos (same parent folder)
 
-## Quick start
+`agent-mesh-execution`, `agent-mesh-strategist`, `agent-mesh-signal`, `agent-mesh-dashboard`, `agent-mesh-pipeline`, `agent-mesh-realtime`, `agent-mesh-mesh-tools`, `agent-mesh-contracts`, and this **`agent-mesh-infra`** (run compose from here).
+
+## Quick start (minimal)
 
 ```bash
 cd agent-mesh-infra
 cp env.example .env
-# edit .env
+# POSTGRES_*, APCA_* keys, LLM keys (e.g. OPENAI_API_KEY or Ollama)
 docker compose up -d --build
+docker compose --profile migrate run --rm migrate   # existing DBs only
+docker compose --profile llm --profile signals up -d --build strategist signal-agent
 ```
 
-**LLM strategist (optional):** writes `market_intelligence` + Redis `strategist:latest`; **never** calls Alpaca. Requires an API key (e.g. `OPENAI_API_KEY`) or local **Ollama** (`LLM_MODEL=ollama/llama3.2`, `OLLAMA_BASE_URL`).
+Open **http://localhost** (Caddy → Streamlit). The **`pipeline`** dev publisher is opt-in (`docker compose --profile pipeline up`). **Do not** run it alongside **`signal-agent`** without intent.
 
-```bash
-docker compose --profile llm up -d --build strategist
-```
-
-**Observability (optional):** Prometheus + Grafana on the `mesh` network.
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
-```
-
-- Prometheus UI: `http://localhost:9091` (config: `deploy/prometheus/prometheus.yml`; scrapes `execution:9090/metrics`).
-- Grafana: `http://localhost:3000` (datasource Prometheus at `http://prometheus:9090`).
-
-Open `http://localhost` (Caddy → dashboard on port 80).
-
-**Execution metrics:** `http://localhost:9090/metrics` on the host (execution container); Prometheus scrapes `execution:9090` inside Docker.
+**Profiles:** `llm` · `signals` · `learning` · `memory` (+ `docker-compose.mem0.yml`) · `realtime` (+ `docker-compose.realtime.yml`) · `mesh-tools` (+ `docker-compose.mesh-tools.yml`) · `hermes` / `hermes-research` (+ `docker-compose.hermes.yml`).
 
 ## Services
 
-| Service | Image / build | Notes |
-|---------|----------------|--------|
-| postgres | pgvector/pg17 | Init SQL + indexes |
-| redis | redis:8-alpine | Streams + cache |
-| execution | `../agent-mesh-execution` | .NET 9 gateway (LLM-free) |
-| strategist | `../agent-mesh-strategist` | **Profile `llm`** — LiteLLM analysis |
-| pipeline | `../agent-mesh-pipeline` | Dev publisher → stream |
-| dashboard | `../agent-mesh-dashboard` | Streamlit |
-| caddy | caddy:2 | Reverse proxy |
+| Service | Build / image | Profile / notes |
+|---------|----------------|-----------------|
+| postgres | pgvector pg17 | — |
+| redis | redis:8 | — |
+| execution | `../agent-mesh-execution` | .NET broker path only |
+| strategist | `../agent-mesh-strategist` | `llm` |
+| signal-agent | `../agent-mesh-signal` | `signals` |
+| learning-agent | same | `learning` |
+| pipeline | `../agent-mesh-pipeline` | dev publisher |
+| dashboard | `../agent-mesh-dashboard` | — |
+| caddy | caddy:2 | :80 |
+| mesh-tools | `../agent-mesh-mesh-tools` | `mesh-tools` — read-only API :8088 |
+| realtime-bridge | `../agent-mesh-realtime` | `realtime` — `/sse`, `/ws` :8095 |
+| hermes-gateway / hermes-research | upstream Hermes | `hermes`, `hermes-research` |
 
-Postgres **17** + pgvector; loads `postgres/init.sql` on **first** volume init only.
+**Queue:** Redis stream `stream:approved:intents`, consumer group `execution`.
 
-**Queue:** `stream:approved:intents` (Redis Streams, consumer group `execution`). Dev publisher `agent-mesh-pipeline` uses **XADD**; execution **XREADGROUP** + **XACK**.
-
-## Adding pipeline workers
-
-Add a `pipeline` service with `build: ../agent-mesh-pipeline` once a `Dockerfile` exists there.
+**Metrics:** execution `:9090`, strategist `:9092`, signal `:9093` (when profiles up).
 
 ## Related
 
-- [agent-mesh-contracts](../agent-mesh-contracts) — shared schemas
-- Legacy monolith scaffold: `alpaca-agent-mesh` (optional; can archive)
+- [agent-mesh-contracts](../agent-mesh-contracts) — JSON schemas  
+- [agent-mesh-mesh-tools](../agent-mesh-mesh-tools) — operator / Hermes read API  
+- [docs/DEPLOY.md](docs/DEPLOY.md) — **runbook**  
+- `alpaca-agent-mesh` — legacy sketch (optional)

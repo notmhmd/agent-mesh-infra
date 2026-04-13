@@ -8,3 +8,18 @@ scrape_configs:
     static_configs:
       - targets:
           - execution:9090
+
+  # Profiles `llm` / `signals` must be up or targets show as down.
+  - job_name: strategist
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - strategist:9092
+
+  - job_name: signal-agent
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - signal-agent:9093

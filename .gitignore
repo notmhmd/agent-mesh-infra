@@ -3,3 +3,7 @@ pg_data/
 redis_data/
 grafana_data/
 .DS_Store
+
+# Hermes local secrets (see deploy/hermes/README.md)
+deploy/hermes/gateway-data/.env
+deploy/hermes/research-data/.env

@@ -1,4 +1,15 @@
 :80 {
 	encode gzip zstd
+
+	# Optional: Hermes Telegram webhook (merge docker-compose.hermes.yml, set TELEGRAM_WEBHOOK_URL).
+	# handle_path /telegram/* {
+	# 	reverse_proxy hermes-gateway:8443
+	# }
+
+	# Optional: realtime-bridge SSE (merge docker-compose.realtime.yml --profile realtime).
+	# handle_path /sse {
+	# 	reverse_proxy realtime-bridge:8095
+	# }
+
 	reverse_proxy dashboard:8501
 }

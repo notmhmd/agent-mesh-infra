@@ -1,0 +1,42 @@
+# Optional: Nous Hermes Agent — Telegram (and other) messaging gateway.
+# Build pulls https://github.com/NousResearch/hermes-agent (first build can take several minutes).
+#
+# Setup: see deploy/hermes/README.md
+#
+#   docker compose -f docker-compose.yml -f docker-compose.hermes.yml --profile hermes up -d --build hermes-gateway
+#
+# Second bot / research lane:
+#   docker compose -f docker-compose.yml -f docker-compose.hermes.yml --profile hermes --profile hermes-research up -d --build
+
+x-hermes-build: &hermes-build
+  context: https://github.com/NousResearch/hermes-agent.git#main
+  dockerfile: Dockerfile
+
+services:
+  hermes-gateway:
+    profiles: [hermes]
+    build: *hermes-build
+    image: agent-mesh-hermes:local
+    restart: unless-stopped
+    command: ["gateway"]
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./deploy/hermes/gateway-data:/opt/data
+    environment:
+      HERMES_HOME: /opt/data
+    networks: [mesh]
+
+  hermes-research:
+    profiles: [hermes-research]
+    build: *hermes-build
+    image: agent-mesh-hermes:local
+    restart: unless-stopped
+    command: ["gateway"]
+    ports:
+      - "8444:8443"
+    volumes:
+      - ./deploy/hermes/research-data:/opt/data
+    environment:
+      HERMES_HOME: /opt/data
+    networks: [mesh]

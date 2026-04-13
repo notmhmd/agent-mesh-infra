@@ -45,12 +45,34 @@ services:
       METRICS_PORT: "9090"
       APCA_API_KEY_ID: ${APCA_API_KEY_ID:-}
       APCA_API_SECRET_KEY: ${APCA_API_SECRET_KEY:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
     depends_on:
       redis: { condition: service_healthy }
       postgres: { condition: service_healthy }
     networks: [mesh]
 
+  # golang-migrate — run: docker compose --profile migrate run --rm migrate
+  migrate:
+    profiles: [migrate]
+    image: migrate/migrate:v4.18.2
+    networks: [mesh]
+    volumes:
+      - ./postgres/migrations:/migrations:ro
+      - ./scripts/migrate_up.sh:/migrate_up.sh:ro
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
+    depends_on:
+      postgres: { condition: service_healthy }
+    entrypoint: ["/bin/sh", "/migrate_up.sh"]
+
+  # Dev Redis stream publisher — opt-in: docker compose --profile pipeline up -d
+  # Do not enable alongside signal-agent (duplicate XADD to stream:approved:intents).
   pipeline:
+    profiles: [pipeline]
     build:
       context: ../agent-mesh-pipeline
       dockerfile: Dockerfile
@@ -62,6 +84,76 @@ services:
       redis: { condition: service_healthy }
     networks: [mesh]
 
+  # AI signal router: market_intelligence + Mem0 + LLM → risk → stream:approved:intents
+  # Do not run alongside the dev `pipeline` publisher without disabling one (duplicate XADD).
+  signal-agent:
+    profiles: [signals]
+    build:
+      context: ../agent-mesh-signal
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    environment:
+      REDIS_HOST: redis
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
+      STREAM_KEY: stream:approved:intents
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      SIGNAL_IDLE_POLL_SEC: ${SIGNAL_IDLE_POLL_SEC:-2}
+      MI_NOTIFY_CHANNEL: ${MI_NOTIFY_CHANNEL:-mesh:mi:new}
+      ALLOWED_SYMBOLS: ${ALLOWED_SYMBOLS:-SPY}
+      DEFAULT_SYMBOL: ${DEFAULT_SYMBOL:-SPY}
+      SIGNAL_MIN_CONFIDENCE: ${SIGNAL_MIN_CONFIDENCE:-0.52}
+      MEM0_BASE_URL: ${MEM0_BASE_URL:-}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+      MEM0_USER_ID: ${MEM0_USER_ID:-agent-mesh}
+      MEM0_AGENT_ID: ${SIGNAL_MEM0_AGENT_ID:-signal-router}
+      MEM0_RUN_ID: ${MEM0_RUN_ID:-}
+      METRICS_PORT: ${SIGNAL_METRICS_PORT:-9093}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_SIGNAL:-agent-mesh-signal}
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    networks: [mesh]
+
+  # Mem0 backfill from execution_events (closed loop learning)
+  learning-agent:
+    profiles: [learning]
+    build:
+      context: ../agent-mesh-signal
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "signal_agent.learning"]
+    environment:
+      REDIS_HOST: redis
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
+      LEARNING_POLL_INTERVAL_SEC: ${LEARNING_POLL_INTERVAL_SEC:-60}
+      MEM0_BASE_URL: ${MEM0_BASE_URL:-}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+      MEM0_USER_ID: ${MEM0_USER_ID:-agent-mesh}
+      MEM0_AGENT_ID: ${LEARNING_MEM0_AGENT_ID:-learning-agent}
+      MEM0_RUN_ID: ${MEM0_RUN_ID:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_LEARNING:-agent-mesh-learning}
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    networks: [mesh]
+
   # LLM strategist (LiteLLM) — analysis only; enable with: docker compose --profile llm up -d
   strategist:
     profiles: [llm]
@@ -69,6 +161,8 @@ services:
       context: ../agent-mesh-strategist
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "9092:9092"
     environment:
       REDIS_HOST: redis
       POSTGRES_HOST: postgres
@@ -76,10 +170,24 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
       LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
-      STRATEGIST_INTERVAL_SEC: ${STRATEGIST_INTERVAL_SEC:-120}
+      STRATEGIST_INTERVAL_SEC: ${STRATEGIST_INTERVAL_SEC:-45}
+      LITELLM_REQUEST_TIMEOUT_SEC: ${LITELLM_REQUEST_TIMEOUT_SEC:-45}
+      MI_NOTIFY_CHANNEL: ${MI_NOTIFY_CHANNEL:-mesh:mi:new}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LITELLM_API_KEY: ${LITELLM_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      MEM0_BASE_URL: ${MEM0_BASE_URL:-}
+      MEM0_API_KEY: ${MEM0_API_KEY:-}
+      MEM0_USER_ID: ${MEM0_USER_ID:-agent-mesh}
+      MEM0_AGENT_ID: ${MEM0_AGENT_ID:-strategist}
+      MEM0_RUN_ID: ${MEM0_RUN_ID:-}
+      MEM0_SEARCH_QUERY: ${MEM0_SEARCH_QUERY:-}
+      METRICS_PORT: ${STRATEGIST_METRICS_PORT:-9092}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-false}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_STRATEGIST:-agent-mesh-strategist}
     depends_on:
       redis: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -106,8 +214,8 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

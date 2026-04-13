@@ -1,0 +1,24 @@
+# Read-only HTTP API for Hermes / operators (latest MI, recent execution_events, Redis ping).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.mesh-tools.yml --profile mesh-tools up -d --build mesh-tools
+
+services:
+  mesh-tools:
+    profiles: [mesh-tools]
+    build:
+      context: ../agent-mesh-mesh-tools
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [mesh]

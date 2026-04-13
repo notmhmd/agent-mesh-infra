@@ -1,0 +1,16 @@
+# Optional: OpenTelemetry Collector (merge with base compose).
+#   docker compose -f docker-compose.yml -f docker-compose.otel.yml up -d otel-collector
+# Then set in .env for execution:
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./deploy/otel/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks: [mesh]

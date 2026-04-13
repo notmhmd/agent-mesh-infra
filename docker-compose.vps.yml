@@ -1,0 +1,13 @@
+# VPS / public hostname: TLS at edge nginx when Caddy uses alternate host ports (see deploy/vps/README).
+# Requires DNS A record → this host and CADDY_DOMAIN in .env.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.vps.yml --profile llm --profile signals up -d --build
+#
+services:
+  caddy:
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:?Set CADDY_DOMAIN in .env e.g. mesh.skrr.cloud}
+    volumes:
+      - ./deploy/vps/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config

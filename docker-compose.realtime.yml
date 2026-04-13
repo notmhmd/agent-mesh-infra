@@ -1,0 +1,24 @@
+# Optional: Redis pub/sub → SSE/WebSocket for browser or desktop live views (Track C). No mobile app / push.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.realtime.yml --profile realtime up -d --build realtime-bridge
+#
+# Endpoints: http://realtime-bridge:8095/sse  ws://realtime-bridge:8095/ws  (or localhost:8095 from host)
+
+services:
+  realtime-bridge:
+    profiles: [realtime]
+    build:
+      context: ../agent-mesh-realtime
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8095:8095"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+      REALTIME_CHANNELS: ${REALTIME_CHANNELS:-mesh:mi:new}
+      REALTIME_TOKEN: ${REALTIME_TOKEN:-}
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [mesh]

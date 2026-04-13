@@ -1,0 +1,58 @@
+# Validates compose after shallow-cloning sibling repos (same GitHub owner as this repo).
+# Optional secret CLONE_PAT: fine-grained PAT with read on private sibling repos.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  compose-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone sibling repos
+        env:
+          ORG: ${{ github.repository_owner }}
+          TOKEN: ${{ secrets.CLONE_PAT }}
+        run: |
+          set -euo pipefail
+          cd "$(dirname "${GITHUB_WORKSPACE}")"
+          AUTH="https://github.com"
+          if [ -n "${TOKEN:-}" ]; then AUTH="https://x-access-token:${TOKEN}@github.com"; fi
+          clone_one() {
+            local name="$1"
+            if [ -d "$name/.git" ]; then return 0; fi
+            if git clone --depth 1 "${AUTH}/${ORG}/${name}.git" "$name"; then
+              echo "cloned $name"
+            else
+              echo "::warning::Could not clone ${ORG}/${name} (private? add CLONE_PAT secret)."
+            fi
+          }
+          for name in \
+            agent-mesh-execution \
+            agent-mesh-strategist \
+            agent-mesh-signal \
+            agent-mesh-dashboard \
+            agent-mesh-pipeline \
+            agent-mesh-realtime \
+            agent-mesh-mesh-tools \
+            agent-mesh-contracts
+          do
+            clone_one "$name"
+          done
+
+      - name: Docker Compose config
+        run: |
+          set -euo pipefail
+          cd "${GITHUB_WORKSPACE}"
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.vps.yml \
+            -f docker-compose.mesh-tools.yml \
+            -f docker-compose.realtime.yml \
+            config --quiet
+          echo "compose config OK"

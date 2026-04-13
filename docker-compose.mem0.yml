@@ -1,0 +1,17 @@
+# Optional: Mem0 OSS API — merge with base compose
+#   docker compose -f docker-compose.yml -f docker-compose.mem0.yml --profile memory up -d
+#
+# Requires OPENAI_API_KEY on the Mem0 server for embeddings inside Mem0 (separate from strategist).
+# See: https://docs.mem0.ai/open-source/features/rest-api
+
+services:
+  mem0:
+    profiles: [memory]
+    image: mem0/mem0-api-server:latest
+    restart: unless-stopped
+    ports:
+      - "8888:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ADMIN_API_KEY: ${MEM0_API_KEY:-}
+    networks: [mesh]

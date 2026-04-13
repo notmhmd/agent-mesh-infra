@@ -1,0 +1,18 @@
+# Use when Caddy binds public :80 and :443 (no edge nginx). Automatic HTTPS for {$CADDY_DOMAIN}.
+# Replace deploy/vps/Caddyfile with this file (or merge the site block) and restart caddy.
+
+{$CADDY_DOMAIN} {
+	encode gzip zstd
+
+	# Optional: Hermes Telegram webhook (merge docker-compose.hermes.yml)
+	# handle_path /telegram/* {
+	# 	reverse_proxy hermes-gateway:8443
+	# }
+
+	# Optional: SSE (merge docker-compose.realtime.yml --profile realtime)
+	# handle_path /sse {
+	# 	reverse_proxy realtime-bridge:8095
+	# }
+
+	reverse_proxy dashboard:8501
+}

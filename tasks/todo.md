@@ -1,25 +1,31 @@
-# Agent Mesh — iteration tracker
+# Agent Mesh — tracker
 
-## Done
-- [x] Prometheus + Grafana merge compose (`docker-compose.observability.yml`)
-- [x] **LLM strategist** service (`agent-mesh-strategist`, LiteLLM, profile `llm`)
-- [x] Postgres `market_intelligence` table + dashboard panel
-- [x] Execution remains LLM-free; metrics on `:9090/metrics`
+## Product complete (v2)
 
-## Backlog
-- [ ] Wire **signal** worker to read `market_intelligence` + apply risk rules before `stream:approved:intents`
-- [ ] OpenTelemetry traces (optional)
-- [ ] Formal DB migrations (existing volumes need manual migrate for new columns)
+- **Core mesh:** postgres, redis, execution, strategist, signal-agent, learning-agent, dashboard, caddy, migrations  
+- **Observability:** Prometheus/Grafana merge, OTel merge + **W3C Baggage** propagator (with trace context) on strategist + signal **when** SDK provides it  
+- **Mem0** merge, contracts, dashboard panels  
+- **agent-mesh-realtime** — SSE/WebSocket  
+- **agent-mesh-mesh-tools** — read-only HTTP API for operators / Hermes (`docker-compose.mesh-tools.yml`, profile **`mesh-tools`**)  
+- **Hermes** compose merge + `deploy/hermes/`  
+- **Smoke test:** `scripts/verify_stack.sh` (executed successfully: health + migrate + metrics)  
+- Docs: [ARCHITECTURE.md](../docs/ARCHITECTURE.md), [DEPLOY.md](../docs/DEPLOY.md), README  
 
-## Architecture (LLM placement)
+## You still configure at runtime (secrets / keys)
+
+| Item | Action |
+|------|--------|
+| Alpaca + LLM keys | `.env` |
+| Hermes Telegram | `deploy/hermes/gateway-data/.env` — BotFather token, `TELEGRAM_ALLOWED_USERS`, LLM keys |
+| Hermes webhook | `TELEGRAM_WEBHOOK_URL` + Caddy `/telegram/*` if needed |
+| Second Hermes bot | `research-data/.env` + profile `hermes-research` |
+
+## Architecture
 
 ```
-strategist (LLM) → Postgres market_intelligence + Redis strategist:latest
-       ↓ (future)
-signal / risk agents (rules + optional ML) → stream:approved:intents
+Mem0 ←→ strategist → market_intelligence + Redis notify
+Mem0 ←→ signal-agent → stream:approved:intents
+Mem0 ←  learning-agent ← execution_events
        ↓
-execution (.NET, no LLM) → Alpaca
+execution (.NET) → broker
 ```
-
-## Review
-- Parallel subagents produced observability files + strategist code; main thread wired schema, compose profile, dashboard, README.

@@ -1,0 +1,19 @@
+# TLS terminates at edge nginx (public 80/443). Caddy serves plain HTTP on :80 inside Docker.
+# Set CADDY_DOMAIN in .env (e.g. mesh.skrr.cloud). DNS A record must point to this host.
+# If Caddy bound 80/443 on the host instead, you could use automatic HTTPS here — not this layout.
+
+http://{$CADDY_DOMAIN} {
+	encode gzip zstd
+
+	# Optional: Hermes Telegram webhook (merge docker-compose.hermes.yml, set TELEGRAM_WEBHOOK_URL=https://{$CADDY_DOMAIN}/telegram)
+	# handle_path /telegram/* {
+	# 	reverse_proxy hermes-gateway:8443
+	# }
+
+	# Optional: SSE (merge docker-compose.realtime.yml --profile realtime)
+	# handle_path /sse {
+	# 	reverse_proxy realtime-bridge:8095
+	# }
+
+	reverse_proxy dashboard:8501
+}

@@ -1,0 +1,9 @@
+# Use when host :80/:443 are already taken (e.g. another reverse proxy).
+# Point your edge proxy (nginx) at 127.0.0.1:9080 for HTTP or terminate TLS and proxy to this port.
+# Example server_name mesh.skrr.cloud → proxy_pass http://127.0.0.1:9080;
+
+services:
+  caddy:
+    ports:
+      - "9080:80"
+      - "9443:443"
