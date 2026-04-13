@@ -23,8 +23,8 @@ for repo in agent-mesh-infra agent-mesh-execution agent-mesh-strategist agent-me
 done
 
 cd "$D"
-FILES="-f docker-compose.yml -f docker-compose.vps.yml -f docker-compose.mesh-tools.yml -f docker-compose.realtime.yml"
-PROFILES="--profile llm --profile signals --profile mesh-tools --profile realtime"
+FILES="-f docker-compose.yml -f docker-compose.vps.yml -f docker-compose.mesh-tools.yml -f docker-compose.realtime.yml -f docker-compose.hermes.yml"
+PROFILES="--profile llm --profile signals --profile mesh-tools --profile realtime --profile hermes"
 
 if [[ "${GITHUB_EVENT_NAME:-}" == "workflow_dispatch" ]] && [[ "${RUN_MIGRATE:-false}" == "true" ]]; then
   echo "== migrate =="
