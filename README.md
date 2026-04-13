@@ -26,14 +26,16 @@ Open `http://localhost` (Caddy → dashboard on port 80).
 
 | Service | Image / build | Notes |
 |---------|----------------|--------|
-| postgres | pgvector/pg16 | Add init SQL in a future change |
-| redis | redis:7 | Queues + cache |
+| postgres | pgvector/pg17 | Init SQL + indexes |
+| redis | redis:8-alpine | Streams + cache |
 | execution | `../agent-mesh-execution` | .NET 8 gateway |
 | pipeline | `../agent-mesh-pipeline` | Dev publisher → `approved:intents` |
 | dashboard | `../agent-mesh-dashboard` | Streamlit |
 | caddy | caddy:2 | Reverse proxy |
 
-Postgres loads `postgres/init.sql` on **first** volume init only.
+Postgres **17** + pgvector; loads `postgres/init.sql` on **first** volume init only.
+
+**Queue:** `stream:approved:intents` (Redis Streams, consumer group `execution`). Dev publisher `agent-mesh-pipeline` uses **XADD**; execution **XREADGROUP** + **XACK**.
 
 ## Adding pipeline workers
 

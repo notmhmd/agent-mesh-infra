@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS execution_events (
     detail JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS ix_execution_events_created_at ON execution_events (created_at DESC);

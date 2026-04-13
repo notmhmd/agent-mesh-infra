@@ -3,7 +3,7 @@
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-agent}
@@ -20,7 +20,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
@@ -39,10 +39,12 @@ services:
     restart: unless-stopped
     environment:
       ConnectionStrings__Redis: redis:6379,abortConnect=false
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-agent_mesh};Username=${POSTGRES_USER:-agent};Password=${POSTGRES_PASSWORD:-change-me}
       APCA_API_KEY_ID: ${APCA_API_KEY_ID:-}
       APCA_API_SECRET_KEY: ${APCA_API_SECRET_KEY:-}
     depends_on:
       redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
     networks: [mesh]
 
   pipeline:
@@ -64,6 +66,7 @@ services:
     restart: unless-stopped
     environment:
       REDIS_HOST: redis
+      STREAM_KEY: stream:approved:intents
     depends_on:
       redis: { condition: service_healthy }
     networks: [mesh]
