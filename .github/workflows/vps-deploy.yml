@@ -1,15 +1,10 @@
 # Deploy agent-mesh to a VPS over SSH (git pull sibling repos + docker compose).
 #
-# Secrets (repo → Settings → Secrets and variables → Actions):
-#   VPS_HOST, VPS_USER, VPS_SSH_PRIVATE_KEY
-# Optional:
-#   VPS_DEPLOY_PATH  path to this repo on the server (default: /opt/agent-mesh/agent-mesh-infra)
-#   VPS_GIT_BRANCH   branch to pull (default: main)
+# Secrets: VPS_HOST, VPS_USER, VPS_SSH_PRIVATE_KEY
+# Optional: VPS_DEPLOY_PATH, VPS_GIT_BRANCH
 #
-# One-time on the server: clone all sibling repos under the same parent directory as agent-mesh-infra
-# (see deploy/vps/README.md). Use a deploy key or machine user with read access to private repos.
-#
-# CD: after the "CI" workflow succeeds on a push to main, this workflow deploys to the VPS.
+# CD: after "CI" succeeds on a push to main, this workflow runs (workflow_run).
+# Remote commands live in scripts/github_vps_deploy.sh (avoids appleboy line-splitting bugs).
 
 name: VPS deploy
 
@@ -35,52 +30,19 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     steps:
-      - name: SSH — git pull siblings + compose up
+      - uses: actions/checkout@v4
+
+      - name: SSH — deploy script on VPS
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          GIT_BRANCH: ${{ secrets.VPS_GIT_BRANCH }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          RUN_MIGRATE: ${{ inputs.run_migrate }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script_stop: true
-          script: |
-            set -euo pipefail
-            D="${{ secrets.VPS_DEPLOY_PATH }}"
-            if [ -z "${D:-}" ]; then D=/opt/agent-mesh/agent-mesh-infra; fi
-            BRANCH="${{ secrets.VPS_GIT_BRANCH }}"
-            if [ -z "${BRANCH:-}" ]; then BRANCH=main; fi
-            PARENT="$(dirname "$D")"
-            echo "Deploy path: $D  parent: $PARENT  branch: $BRANCH"
-
-            for repo in \
-              agent-mesh-infra \
-              agent-mesh-execution \
-              agent-mesh-strategist \
-              agent-mesh-signal \
-              agent-mesh-dashboard \
-              agent-mesh-pipeline \
-              agent-mesh-realtime \
-              agent-mesh-mesh-tools \
-              agent-mesh-contracts
-            do
-              R="$PARENT/$repo"
-              if [ -d "$R/.git" ]; then
-                echo "== git pull: $repo =="
-                git -C "$R" fetch origin "$BRANCH" --depth=120 || git -C "$R" fetch origin --depth=120
-                git -C "$R" checkout "$BRANCH" || git -C "$R" checkout main
-                git -C "$R" pull --ff-only origin "$BRANCH" || git -C "$R" pull --ff-only
-              else
-                echo "(skip missing clone: $R)"
-              fi
-            done
-
-            cd "$D"
-            FILES="-f docker-compose.yml -f docker-compose.vps.yml -f docker-compose.mesh-tools.yml -f docker-compose.realtime.yml"
-            PROFILES="--profile llm --profile signals --profile mesh-tools --profile realtime"
-
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.run_migrate }}" = "true" ]; then
-              echo "== migrate =="
-              docker compose $FILES --profile migrate run --rm migrate
-            fi
-
-            echo "== compose up =="
-            docker compose $FILES $PROFILES up -d --build
+          envs: DEPLOY_PATH,GIT_BRANCH,GITHUB_EVENT_NAME,RUN_MIGRATE
+          script_path: scripts/github_vps_deploy.sh
