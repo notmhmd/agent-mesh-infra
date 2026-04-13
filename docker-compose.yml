@@ -1,0 +1,77 @@
+# Run from this directory: docker compose up -d --build
+# Expects sibling clones: ../agent-mesh-execution, ../agent-mesh-dashboard
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-agent_mesh}
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+    networks: [mesh]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent} -d ${POSTGRES_DB:-agent_mesh}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis_data:/data
+    networks: [mesh]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  execution:
+    build:
+      context: ../agent-mesh-execution
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis:6379
+      APCA_API_KEY_ID: ${APCA_API_KEY_ID:-}
+      APCA_API_SECRET_KEY: ${APCA_API_SECRET_KEY:-}
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [mesh]
+
+  dashboard:
+    build:
+      context: ../agent-mesh-dashboard
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [mesh]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [dashboard]
+    networks: [mesh]
+
+networks:
+  mesh:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
